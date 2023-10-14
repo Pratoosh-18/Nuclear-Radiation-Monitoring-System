@@ -17,8 +17,8 @@ if uploaded_file is not None:
     df = pd.read_csv(uploaded_file)
 
     # Display the dataset
-    st.write("Uploaded Dataset:")
-    st.write(df)
+    # st.write("Uploaded Dataset:")
+    # st.write(df)
 
     # Handle missing values by filling them with 0
     df.fillna(0, inplace=True)
@@ -60,11 +60,34 @@ if uploaded_file is not None:
         'Moderate': 'red'
     }
 
+    safe_zones = []
+    moderate_zones = []
     dangerous_zones = []
 
     for index, row in df.iterrows():
         reactor_safety = row['Safety']
-        if reactor_safety == 'Safe' or 'Moderate' or 'Dangerous':
+        if reactor_safety == 'Safe':
+            plant_latitude, plant_longitude = row['Latitude'], row['Longitude']
+            
+            # Distance between user and nuclear power plant in km
+            distance = geodesic((user_latitude, user_longitude), (plant_latitude, plant_longitude)).km
+            
+            # Distance in km for alerting the user
+            threshold_distance = 500
+            if distance <= threshold_distance:
+                safe_zones.append(row['Name'])
+                
+        elif reactor_safety =='Moderate':
+            plant_latitude, plant_longitude = row['Latitude'], row['Longitude']
+            
+            # Distance between user and nuclear power plant in km
+            distance = geodesic((user_latitude, user_longitude), (plant_latitude, plant_longitude)).km
+            
+            # Distance in km for alerting the user
+            threshold_distance = 500
+            if distance <= threshold_distance:
+                moderate_zones.append(row['Name'])
+        elif reactor_safety =='Dangerous':
             plant_latitude, plant_longitude = row['Latitude'], row['Longitude']
             
             # Distance between user and nuclear power plant in km
@@ -80,11 +103,11 @@ if uploaded_file is not None:
             location=[row['Latitude'], row['Longitude']],
             
             # Radius in meters
-            radius=10000,  
+            radius=30000,  
             color=color,
             fill=True,
             fill_color=color,
-            fill_opacity=1,
+            fill_opacity=0.25,
             tooltip=row['Name']
         ).add_to(map)
 
@@ -96,7 +119,25 @@ if uploaded_file is not None:
     
     # Desktop notification
     
-    def show_notification(plant_names):
+    def dangerous_notification(plant_names):
+        title = "Nuclear Radiation Proximity Alert!"
+        message = f"You are near {', '.join(plant_names)} Nuclear Powerplant(Reactors) with dangerously high radiation levels. It's strongly advised to leave the radiation affected area as soon as possible for your own safety. "
+        notification.notify(
+            title=title,
+            message=message,
+            app_name='Nuclear Power Plant Alert',
+            timeout=10
+        )
+    def Moderate_notification(plant_names):
+        title = "Nuclear Radiation Proximity Alert!"
+        message = f"You are near {', '.join(plant_names)} Nuclear Power Plant (Reactors) with high radiation level. Do not spend to much time here.Long exposure to such radiations may harm you. "
+        notification.notify(
+            title=title,
+            message=message,
+            app_name='Nuclear Power Plant Alert',
+            timeout=10
+        )
+    def Safe_notification(plant_names):
         title = "Nuclear Radiation Proximity Alert!"
         message = f"You are near {', '.join(plant_names)} Nuclear Power Plant (Reactors).This area may be exposed to Nuclear Radiations. Long exposure to these radiations may affect your health. Please make sure that you move out from this area soon for your safety."
         notification.notify(
@@ -107,10 +148,20 @@ if uploaded_file is not None:
         )
 
     if dangerous_zones:
-        alert_message = f"You are near {', '.join(dangerous_zones)} Nuclear Power Plant (Reactors).This area may be exposed to Nuclear Radiations. Long exposure to these radiations may affect your health. Please make sure that you move out from this area soon for your safety"
+        alert_message = f"High Radiation Zone {', '.join(dangerous_zones)}"
         st.error(alert_message)
         # Show desktop notification if dangerous zones are detected
-        show_notification(dangerous_zones)
+        dangerous_notification(dangerous_zones)
+    elif moderate_zones:
+        alert_message = f"Moderate Radiation Zone {', '.join(dangerous_zones)}"
+        st.error(alert_message)
+        # Show desktop notification if dangerous zones are detected
+        Moderate_notification(moderate_zones)
+    elif safe_zones:
+        alert_message = f"Radiation Zone {', '.join(dangerous_zones)}"
+        st.error(alert_message)
+        # Show desktop notification if dangerous zones are detected
+        Safe_notification(safe_zones)
     else:
         st.success("You are in a safe zone. No dangerous nuclear power plants nearby.")
 
